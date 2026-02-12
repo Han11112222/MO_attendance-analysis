@@ -8,10 +8,9 @@ function renderRankingChart(userAttendance) {
     
     const ctx = document.getElementById('rankingChart').getContext('2d');
     if (rankingChartInstance) rankingChartInstance.destroy();
-    
     rankingChartInstance = new Chart(ctx, {
         type: 'bar', 
-        // indexAxis를 'x'로 설정하거나 삭제하면 세로 막대그래프가 됩니다 (이름이 아래로 감)
+        // 💡 가로 막대형(y)에서 세로 막대형으로 변경하여 하단에 이름이 나오게 합니다.
         indexAxis: 'x', 
         data: {
             labels: sortedUsers.map(u => u[0]),
@@ -23,15 +22,15 @@ function renderRankingChart(userAttendance) {
             }]
         },
         options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
+            responsive: True, 
+            maintainAspectRatio: False, 
             plugins: { 
-                legend: { display: false } 
+                legend: { display: False } 
             }, 
             scales: { 
                 x: { 
-                    display: true, // 이름을 표시하도록 설정 (이전 코드 오류 수정됨)
-                    grid: { display: false },
+                    display: True, // 💡 이름을 표시하기 위해 True로 설정
+                    grid: { display: False },
                     ticks: {
                         font: {
                             size: 12,
@@ -40,7 +39,7 @@ function renderRankingChart(userAttendance) {
                     }
                 }, 
                 y: { 
-                    beginAtZero: true,
+                    beginAtZero: True,
                     grid: { borderDash: [2, 2] } 
                 } 
             } 
