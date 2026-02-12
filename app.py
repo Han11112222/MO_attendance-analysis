@@ -2,22 +2,24 @@ import streamlit as st
 import streamlit.components.v1 as components
 import os
 
-# 페이지 설정
+# 1. 페이지를 넓게 설정
 st.set_page_config(page_title="목우회 분석 리포트", layout="wide")
 
-# 파일 경로 설정 (2번째 사진의 깃허브 구조 기준)
-html_file_path = "목우회_분석_완성본_20260212 (1).html"
+# 2. 형님이 업로드한 HTML 파일명 (공백과 괄호 주의)
+HTML_FILE = "목우회_분석_완성본_20260212 (1).html"
 
 def main():
-    if os.path.exists(html_file_path):
-        with open(html_file_path, "r", encoding="utf-8") as f:
+    # 파일이 존재하는지 확인
+    if os.path.exists(HTML_FILE):
+        with open(HTML_FILE, "r", encoding="utf-8") as f:
             html_content = f.read()
         
-        # HTML 원본의 구성을 그대로 스트림릿에 삽입
-        # height는 화면 크기에 맞게 조절하세요.
+        # 3. HTML 삽입 (형님이 만든 동적 그래프와 디자인이 그대로 나타남)
+        # height는 대시보드 길이에 맞춰 1500으로 넉넉히 잡았습니다.
         components.html(html_content, height=1500, scrolling=True)
     else:
-        st.error(f"'{html_file_path}' 파일을 찾을 수 없습니다. 깃허브 파일명을 다시 확인해주세요.")
+        st.error(f"파일을 찾을 수 없습니다: {HTML_FILE}")
+        st.info("깃허브 리포지토리에 HTML 파일이 업로드되어 있는지 확인해주세요.")
 
 if __name__ == "__main__":
     main()
