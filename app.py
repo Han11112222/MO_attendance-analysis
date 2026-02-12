@@ -1,57 +1,68 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+import re
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 
-# 1. 페이지 기본 설정 (가장 먼저 와야 합니다)
-st.set_page_config(
-    page_title="대구 도시가스 사용량 분석", 
-    page_icon="🔥", 
-    layout="wide"
-)
+# 한글 폰트 설정 (배포 환경에 따라 나눔고딕 등을 설치하거나 기본 폰트 사용)
+plt.rc('font', family='NanumGothic') 
 
-# 2. 대시보드 제목 및 설명
-st.title("📊 2025-2026 동절기 대구 지역 도시가스 사용량 대시보드")
-st.markdown("**마케팅본부 기획팀 경영진 보고용 시각화 자료입니다.**")
-st.divider() # 구분선
-
-# 3. 데이터 로드 (임시 가상 데이터 생성)
-# 실제 업무에서는 아래 코드를 df = pd.read_excel('실제데이터.xlsx') 로 변경하시면 됩니다.
-@st.cache_data
-def load_data():
-    # 25년 11월 ~ 12월 날짜 생성
-    dates = pd.date_range(start="2025-11-01", end="2025-12-31")
+def extract_attendance(file_content):
+    """카카오톡 대화에서 날짜와 참석 인원 추출"""
+    data = []
+    current_date = None
     
-    # 대구 주요 구별 가상 데이터 (점진적으로 상승하는 추세 반영)
-    data = {
-        "날짜": dates,
-        "수성구 (가정용)": np.random.randint(100, 150, size=len(dates)) + np.linspace(0, 80, len(dates)),
-        "달서구 (산업/가정)": np.random.randint(120, 180, size=len(dates)) + np.linspace(0, 90, len(dates)),
-        "중구 (상업용)": np.random.randint(50, 80, size=len(dates)) + np.linspace(0, 30, len(dates)),
-    }
-    return pd.DataFrame(data)
+    lines = file_content.split('\n')
+    for line in lines:
+        # 날짜 라인 확인 (예: --------------- 2024년 3월 14일 목요일 ---------------)
+        date_match = re.search(r'-+ (\d{4}년 \d{1,2}월 \d{1,2}일) \w+요일 -+', line)
+        if date_match:
+            current_date = date_match.group(1)
+            continue
+            
+        # 참석 메시지 확인 (예: [이름] [시간] 참석 1, 참 2 등)
+        if current_date and ('참석' in line or '참 ' in line or '참슥' in line):
+            # 숫자 추출 (참석 12 처럼 뒤에 붙은 숫자)
+            num_match = re.findall(r'(\d+)', line)
+            if num_match:
+                count = int(num_match[-1])
+                # 해당 날짜의 최대 참석 번호를 기록
+                data.append({'날짜': current_date, '인원': count})
 
-df = load_data()
+    df = pd.DataFrame(data)
+    if not df.empty:
+        # 날짜별 마지막(최대) 인원만 남기기
+        df = df.groupby('날짜').max().reset_index()
+        # 날짜 순서 정렬을 위해 datetime 변환
+        df['날짜_dt'] = pd.to_datetime(df['날짜'], format='%Y년 %m월 %d일')
+        df = df.sort_values('날짜_dt')
+    return df
 
-# 4. 레이아웃 분할 (좌측: 데이터표, 우측: 분석 요약)
-col1, col2 = st.columns([2, 1])
+# 스트림릿 UI
+st.title("🎾 목우회 참석 현황 분석")
+st.write("카카오톡 대화 파일을 업로드하여 참석 인원 추이를 확인하세요.")
 
-with col1:
-    st.subheader("📈 구별 가스 사용량 증감 추이")
-    # 날짜를 인덱스로 설정하여 꺾은선 그래프 그리기
-    chart_data = df.set_index("날짜")
-    st.line_chart(chart_data)
+uploaded_file = st.file_uploader("KakaoTalk 대화 내용(.txt) 업로드", type="txt")
 
-with col2:
-    st.subheader("💡 주요 원인 분석 (요약)")
-    st.info("""
-    **[동절기 사용량 급증 원인]**
-    - **수성구/달서구**: 12월 중순 대구 지역 한파 특보 발효 이후 난방 수요가 급증하여 전월 대비 일 사용량이 큰 폭으로 상승했습니다.
-    - **중구**: 상업 시설 위주로 주말과 평일의 사용량 편차가 뚜렷하게 나타나고 있습니다.
+if uploaded_file is not None:
+    content = uploaded_file.read().decode("utf-8")
+    df = extract_attendance(content)
     
-    **[향후 대응 방안]**
-    - 1월~2월 추가 한파에 대비하여 피크 시간대(오전 7~9시, 오후 6~8시) 안정적인 공급망 점검이 필요합니다.
-    """)
-
-# 5. 하단 원본 데이터 확인 영역
-with st.expander("📝 일자별 원본 데이터 보기 (클릭하여 펼치기)"):
-    st.dataframe(df, use_container_width=True)
+    if not df.empty:
+        st.subheader("날짜별 참석 인원 추이")
+        
+        # 그래프 생성
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(df['날짜'], df['인원'], marker='o', linestyle='-', color='royalblue')
+        ax.set_xlabel("운동 날짜")
+        ax.set_ylabel("참석 인원 (명)")
+        plt.xticks(rotation=45)
+        ax.grid(True, linestyle='--', alpha=0.7)
+        
+        st.pyplot(fig)
+        
+        # 데이터 표 표시
+        st.subheader("상세 데이터")
+        st.dataframe(df[['날짜', '인원']])
+    else:
+        st.error("참석 데이터를 찾을 수 없습니다. 파일 형식을 확인해주세요.")
